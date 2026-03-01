@@ -1,0 +1,7 @@
+imbalanced-learn
+xgboost
+scikit-learn
+pandas
+matplotlib
+seaborn
+streamlit==1.54.0
