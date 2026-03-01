@@ -4,76 +4,86 @@ import numpy as np
 import pandas as pd
 
 # Set page configuration
-st.set_page_config(page_title="AI Predictive Maintenance", layout="centered")
+st.set_page_config(page_title="AI Predictive Maintenance", layout="wide")
 
 # --- LOAD ASSETS ---
 @st.cache_resource
 def load_assets():
-    # Load the model and encoder
-    with open('pdm_model.pkl', 'rb') as f:
-        model = pickle.load(f)
-    with open('encoder.pkl', 'rb') as f:
-        encoder = pickle.load(f)
-    return model, encoder
+    try:
+        with open('pdm_model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        with open('encoder.pkl', 'rb') as f:
+            encoder = pickle.load(f)
+        return model, encoder
+    except Exception as e:
+        st.error(f"Error loading files: {e}")
+        return None, None
 
-try:
-    model, encoder = load_assets()
-except Exception as e:
-    st.error(f"Error loading model files: {e}")
+model, encoder = load_assets()
+
+if model is None or encoder is None:
     st.stop()
 
 # --- USER INTERFACE ---
-st.title("🛠️ Smart Factory: Predictive Maintenance")
-st.markdown("Enter real-time sensor data to check for potential failure risks.")
+st.title("🛠️ Smart Factory: AI Predictive Maintenance")
+st.markdown("### Real-time Machine Health Monitoring")
 
-# Sidebar for inputs
-st.sidebar.header("Machine Settings")
+# Layout with two columns: Inputs on the left, Results on the right
+col_input, col_result = st.columns([1, 2])
 
-# 1. Machine Type (We keep this for UI, even if model only uses 3 features)
-m_type = st.sidebar.selectbox("Select Machine Type", encoder.classes_)
-
-# 2. The 3 main sensor features
-temp = st.sidebar.slider("Temperature (°C)", 0.0, 150.0, 65.0)
-vib = st.sidebar.slider("Vibration (mms)", 0.0, 50.0, 10.0)
-power = st.sidebar.number_input("Power Consumption (kW)", value=100.0)
-
-# Main Dashboard Logic
-st.subheader(f"Monitoring: {m_type}")
-
-if st.button("Run Diagnostic Analysis"):
-    # IMPORTANT: We only send the 3 features the model expects
-    # This matches the 'Expected: 3' from your error message
-    input_data = np.array([[temp, vib, power]])
+with col_input:
+    st.header("Sensor Inputs")
+    m_type = st.selectbox("Machine Type", encoder.classes_)
     
-    # Generate Prediction
-    try:
+    # These 3 must be in the EXACT order your model was trained on
+    temp = st.slider("Temperature (°C)", 0.0, 150.0, 65.0)
+    vib = st.slider("Vibration (m/s²)", 0.0, 50.0, 5.0)
+    power = st.number_input("Power Consumption (kW)", value=100.0)
+    
+    # Toggle for technical users
+    show_debug = st.checkbox("Show Model Debugger")
+
+with col_result:
+    st.header(f"Diagnostic Status: {m_type}")
+    
+    if st.button("Analyze Machine Health"):
+        # 1. Prepare input (Ensure order matches training: Temp, Vib, Power)
+        input_data = np.array([[temp, vib, power]])
+        
+        # 2. Prediction logic
         prediction = model.predict(input_data)[0]
-        probability = model.predict_proba(input_data)[0][1]
+        # Get probability of failure (Class 1)
+        raw_probs = model.predict_proba(input_data)[0]
+        failure_prob = raw_probs[1]
         
-        # Display Results in columns
-        col1, col2 = st.columns(2)
+        # 3. Visual Gauges/Metrics
+        m1, m2 = st.columns(2)
+        m1.metric("Risk Level", f"{failure_prob:.1%}")
         
-        with col1:
-            st.metric("Failure Probability", f"{probability:.1%}")
+        if prediction == 1:
+            m2.error("CRITICAL: FAILURE LIKELY")
+        else:
+            m2.success("STABLE: HEALTHY")
             
-        with col2:
-            if prediction == 1:
-                st.error("STATUS: CRITICAL RISK")
-            else:
-                st.success("STATUS: HEALTHY")
+        # 4. Progress bar for visual risk
+        st.progress(failure_prob)
         
-        # Actionable Advice
-        if probability > 0.8:
-            st.warning("⚠️ CRITICAL: Schedule immediate inspection for " + m_type)
-        elif probability > 0.2:
-            st.info("ℹ️ CAUTION: Increased wear detected in " + m_type)
+        # 5. Actionable Guidance
+        if failure_prob > 0.8:
+            st.warning(f"🚨 IMMEDIATE ACTION REQUIRED: Sensor readings for {m_type} indicate imminent mechanical failure.")
+        elif failure_prob > 0.4:
+            st.info(f"⚠️ MAINTENANCE ADVISORY: Stress patterns detected. Schedule an inspection for {m_type} within 7 days.")
         else:
             st.balloons()
-            st.write("Machine is operating within normal parameters.")
+            st.write("✅ Machine is performing within optimal parameters.")
 
-    except ValueError as e:
-        st.error(f"Internal Model Error: {e}")
-        st.info("Tip: If the model still expects a different number of features, we may need to retrain it.")
+        # --- DEBUGGER SECTION ---
+        if show_debug:
+            st.divider()
+            st.subheader("🔍 Technical Debugger")
+            st.write("Input Vector sent to AI:", input_data)
+            st.write(f"Raw Model Probability Distribution: [Healthy: {raw_probs[0]:.4f}, Failure: {raw_probs[1]:.4f}]")
+            st.write("Tip: If probability is 0% even with high vibration, check if your model was trained on 'Scaled' data.")
 
 st.divider()
-st.caption("Developed by Amar Sanap | AI-Powered Maintenance System 2026")
+st.caption("Developed by Amar Sanap | COEP Tech University | Predictive Maintenance System v1.0")
