@@ -1,6 +1,5 @@
 import streamlit as st
 import pickle
-import numpy as np
 import pandas as pd
 
 # ---------------- PAGE CONFIG ----------------
@@ -22,15 +21,15 @@ def load_assets():
 model, encoder = load_assets()
 
 # ---------------- UI ----------------
-st.title("🛠️ Smart Factory: AI Predictive Maintenance")
-st.write("Enter machine sensor data to predict possible failure.")
+st.title("🛠️ Smart Factory: AI Predictive Maintenance System")
+st.write("Enter real-time machine sensor data to predict possible equipment failure.")
 
 col1, col2 = st.columns([1,2])
 
-# ---------------- INPUT ----------------
+# ---------------- INPUT SECTION ----------------
 with col1:
 
-    st.header("Machine Settings")
+    st.header("Machine Sensor Inputs")
 
     machine_type = st.selectbox(
         "Select Machine Type",
@@ -39,50 +38,49 @@ with col1:
 
     temperature = st.slider(
         "Temperature (°C)",
-        0.0,150.0,65.0
+        20.0, 120.0, 65.0
     )
 
     vibration = st.slider(
         "Vibration (mm/s)",
-        0.0,50.0,5.0
+        0.0, 10.0, 3.0
     )
 
-# ---------------- RESULT ----------------
+# ---------------- RESULT SECTION ----------------
 with col2:
 
     st.header("Prediction Result")
 
     if st.button("Analyze Machine Health"):
 
+        # Encode machine type
         machine_encoded = encoder.transform([machine_type])[0]
 
-        # IMPORTANT: Match model features exactly
-        input_data = pd.DataFrame(
-            [[machine_encoded, temperature, vibration]],
-            columns=[
-                "Machine_Type",
-                "Temperature",
-                "Vibration"
-            ]
-        )
+        # Create dataframe exactly like training features
+        input_data = pd.DataFrame({
+            "Machine_Type":[machine_encoded],
+            "Temperature_C":[temperature],
+            "Vibration_mms":[vibration]
+        })
 
         try:
 
-            prediction = model.predict(input_data, validate_features=False)[0]
-            prob = model.predict_proba(input_data, validate_features=False)[0][1]
+            prediction = model.predict(input_data)[0]
+            probability = model.predict_proba(input_data)[0][1]
 
-            st.metric("Failure Risk", f"{prob:.2%}")
+            st.metric("Failure Risk", f"{probability:.2%}")
 
             if prediction == 1:
                 st.error("⚠️ FAILURE LIKELY")
+                st.warning("Maintenance recommended within 7 days.")
             else:
                 st.success("✅ MACHINE HEALTHY")
 
-            st.progress(int(prob*100))
+            st.progress(int(probability * 100))
 
         except Exception as e:
             st.error(f"Prediction Error: {e}")
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.caption("Developed by Amar Sanap | Smart Factory Predictive Maintenance")
+st.caption("Developed by Amar Sanap | COEP Technological University | AI Predictive Maintenance Project 2026")
