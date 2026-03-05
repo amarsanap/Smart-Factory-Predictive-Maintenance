@@ -55,11 +55,6 @@ with col_input:
         0.0, 50.0, 5.0
     )
 
-    power = st.number_input(
-        "Power Consumption (kW)",
-        value=100.0
-    )
-
     show_debug = st.checkbox("Show Technical Debugger")
 
 # ---------------- RESULT SECTION ----------------
@@ -72,12 +67,11 @@ with col_result:
         # Encode machine type
         m_type_encoded = encoder.transform([m_type])[0]
 
-        # Prepare input data
+        # Prepare input data (ONLY 3 FEATURES)
         input_data = pd.DataFrame({
             "Machine_Type":[m_type_encoded],
             "Temperature_C":[temp],
-            "Vibration_mms":[vib],
-            "Power_Consumption_kW":[power]
+            "Vibration_mms":[vib]
         })
 
         # Prediction
@@ -120,11 +114,11 @@ with col_result:
 
         try:
             importance = model.feature_importances_
+
             features = [
                 "Machine_Type",
                 "Temperature",
-                "Vibration",
-                "Power"
+                "Vibration"
             ]
 
             fig, ax = plt.subplots()
@@ -156,5 +150,5 @@ with col_result:
 st.divider()
 
 st.caption(
-"Developed by Amar Sanap | Predictive Maintenance System | Machine Learning Project"
+"Developed by Amar Sanap | COEP Technological University Pune | 2026"
 )
